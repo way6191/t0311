@@ -1,0 +1,131 @@
+Sub MoveToCellA1_AllSheet()
+    Dim WB As Workbook
+    Set WB = ActiveWorkbook
+    Dim lngTop As Long
+    Dim objFile As Object
+    Dim objFldr As FileSystemObject
+    Dim objShape As Shape
+    Dim MyZoom As Integer
+    Dim myShape As Shape
+  
+    Dim WS As Worksheet
+    Set objFldr = CreateObject("Scripting.FileSystemObject")
+    
+    For Each WS In WB.Worksheets
+        WS.Activate
+
+        Call アクティブシートの画像をすべて削除する
+        
+        Ct = 0
+        
+        lngTop = 193.5
+        Application.ScreenUpdating = False
+        'ヘッダーシートは表示倍率100%
+        If WS.Name = "ヘッダー" Then
+            ActiveWindow.Zoom = 100
+        Else
+            'エビデンスシートも一度、倍率100%
+            ActiveWindow.Zoom = 100
+            
+            '貼り付けを行うエビデンスファイルを任意の場所に保管し、テストNo毎にフォルダ分けを事前に行うこと。
+            '参照先のパスを下記のパスと書き換える　例："C:\temp\" & WS.Name
+            FileCount = objFldr.GetFolder(ThisWorkbook.Path & "\testcases\" & WS.Name).Files.Count
+            
+                'フォルダ配下の画像ファイル数だけ貼り付け枠と行の高さを調整
+                For Count = 1 To FileCount
+                    If Count > 1 Then
+                        Ct = Ct + 1
+                        y = 10 + (70 * Ct)
+                        Z = 79 + (70 * Ct)
+                        Range("B" & y & ":EA" & Z).RowHeight = 18
+                        Range("A10:EA79").Copy
+                        Range("A" & y).PasteSpecial
+                    End If
+                Next
+                
+            '参照先のパスを下記のパスと書き換える　例："C:\temp\" & WS.Name
+            For Each objFile In objFldr.GetFolder(ThisWorkbook.Path & "\testcases\"  & WS.Name).Files
+            
+                'フォルダ配下の画像をobjFileに格納し、貼り付けを行う
+                Set myShape = ActiveSheet.Shapes.AddPicture( _
+                Filename:=objFile, _
+                LinkToFile:=False, _
+                SaveWithDocument:=True, _
+                Left:=45, _
+                Top:=lngTop, _
+                Width:=0, _
+                Height:=0)
+                    
+                '張り付けた画像を最背面に移動(赤枠再利用)
+                ActiveSheet.Pictures.ShapeRange.ZOrder msoSendToBack
+
+                '図の表示倍率を100%
+                With myShape
+                    If .Type = msoPicture Then
+                        .ScaleHeight 1, msoTrue
+                        .ScaleWidth 1, msoTrue
+                    End If
+                End With
+                                
+                lngTop = lngTop + 1201.5 + 59#
+                
+            Next
+            
+            '表示倍率を40%に縮小
+            ActiveWindow.Zoom = 40
+            
+            'シートの印刷範囲の高さを最後のエビデンスまでに設定
+            x = 9 + (70 * FileCount)
+            ActiveSheet.PageSetup.PrintArea = "B2:EA" & x
+
+        End If
+        
+        Call 画像リセット
+        
+        WS.Cells(1, 1).Select
+
+    Next
+    
+    Application.ScreenUpdating = True
+  
+    'ヘッダーに必要情報を入力
+    WB.Worksheets(1).Activate
+    Range("C6").Select
+    ActiveCell.FormulaR1C1 = "テストケース"
+    Range("C7").Select
+    ActiveCell.FormulaR1C1 = "作成日"
+    Range("C9").Select
+    ActiveCell.FormulaR1C1 = "名前"
+    Cells(1, 1).Select
+    
+    'ブックの保存
+    ActiveWorkbook.Save
+End Sub
+
+
+Public Sub 画像リセット()
+Application.ScreenUpdating = False
+
+    'シート上のエビデンスを選択
+    For Each myShape In ActiveSheet.Shapes
+        myShape.Select Replace:=False
+    Next myShape
+    With Application.CommandBars
+    
+    '図の書式設定>リセット をすべての図に対して行う
+    If .GetEnabledMso("PictureResetAndSize") = True Then .ExecuteMso "PictureResetAndSize"
+    End With
+Application.ScreenUpdating = True
+End Sub
+
+
+Public Sub アクティブシートの画像をすべて削除する()
+
+Application.ScreenUpdating = False
+  Dim shp As Shape
+  '画像を1枚ずつ取得し削除
+  For Each shp In ActiveSheet.Shapes
+    If shp.Type = msoPicture Then shp.Delete
+  Next shp
+Application.ScreenUpdating = True
+End Sub
